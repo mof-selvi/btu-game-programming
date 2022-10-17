@@ -1,1 +1,1 @@
-# btu-game-programming
+# Bursa Technical University Game Programming Course Documents
