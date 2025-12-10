@@ -9,4 +9,5 @@
 - `QLearningBrain.DecideAction()` metodundan gelen karara göre ilgili aksiyonunuzu çağırın.
 - Agent nesnenizin bulunduğu duruma göre `QLearningBrain.Reward()` (ödül) veya `QLearningBrain.Punish()` (ceza) fonksiyonlarını çağırın.
 - Oyununuz çalışır durumda oldukça agent nesneniz uygun aksiyonları lehine kullanmayı öğrenecektir. Fakat bu noktaya gelmeniz fazla uzun sürebilir. Şu anki aşamada bu sistemle agent nesnenize rastgele de olsa kararlar aldırabilmeniz yeterlidir.
+- Örnek kullanım için [EnemyAI.cs](EnemyAI.cs) scriptini inceleyin.
 
