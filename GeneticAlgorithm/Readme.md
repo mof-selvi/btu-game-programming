@@ -23,7 +23,7 @@
 ### Genetik Algoritmayla Kamuflaj Eğitimi (Kurulum)
 
 *   Yeni bir Unity 2D proje oluşturun.
-*   Proje dosyasını ( (CamoGATraining.unitypackage)[CamoGATraining] ) import edin.
+*   Proje dosyasını ( [CamoGATraining.unitypackage](CamoGATraining) ) import edin.
 *   Varsayılan sahneyi silerek **camo** sahnesini Scenes klasörüne taşıyın.
 *   Assets altında **Prefabs** klasörü oluşturun ve Person’u bu klasöre taşıyın.
 *   Assets altında **Scripts** klasörü oluşturun. Bu klasör altında yeni bir C# script oluşturun: `DNA_sc` ve script’i nesneye ekleyin.
