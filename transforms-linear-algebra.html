@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Origin-Based Transforms & Matrix Math</title>
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: rgba(17, 24, 39, 0.85);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --border-focus: #3b82f6;
+      
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      
+      --accent-obj: #38bdf8;         /* Position: Cyan */
+      --accent-trans: #38bdf8;       /* Translation: Cyan */
+      --accent-rot: #fbbf24;         /* Rotation: Amber */
+      --accent-scale: #34d399;       /* Scale: Emerald */
+      --accent-unity: #22d3ee;       /* Unity Cyan */
+      
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    header {
+      padding: 0.85rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10, 14, 23, 0.95);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      color: #050811;
+      font-weight: 800;
+      font-size: 0.78rem;
+      padding: 0.25rem 0.55rem;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .brand h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    /* Layout */
+    .app-container {
+      display: grid;
+      grid-template-columns: 1fr 490px;
+      gap: 1.25rem;
+      padding: 1.25rem;
+      flex: 1;
+      max-width: 1920px;
+      margin: 0 auto;
+      width: 100%;
+      height: calc(100vh - 65px);
+      min-height: 0;
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 1050px) {
+      .app-container {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
+      min-height: 0;
+    }
+
+    .panel-header {
+      padding: 0.8rem 1.1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .panel-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .panel-body {
+      padding: 1.1rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* Canvas */
+    .canvas-wrapper {
+      position: relative;
+      flex: 1;
+      min-height: 540px;
+      height: 100%;
+      background: #070b12;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    #viewport {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+
+    .btn-icon {
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-icon:hover {
+      background: rgba(31, 41, 55, 0.95);
+      border-color: #4b5563;
+    }
+
+    /* Persistent Status Card (ONLY Shows Position as requested) */
+    .status-dashboard {
+      background: #090e1a;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 10px;
+      padding: 0.9rem 1.1rem;
+      margin-bottom: 1.1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .status-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      margin-bottom: 0.25rem;
+    }
+
+    .status-value {
+      font-family: var(--font-mono);
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--accent-obj);
+    }
+
+    /* Tabs Bar: ONLY Translate, Rotate, Scale */
+    .tabs-nav {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.25);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      padding: 0.85rem 0.5rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .tab-btn.active.tab-t {
+      color: var(--accent-trans);
+      border-bottom-color: var(--accent-trans);
+      background: rgba(56, 189, 248, 0.06);
+    }
+
+    .tab-btn.active.tab-r {
+      color: var(--accent-rot);
+      border-bottom-color: var(--accent-rot);
+      background: rgba(251, 191, 36, 0.06);
+    }
+
+    .tab-btn.active.tab-s {
+      color: var(--accent-scale);
+      border-bottom-color: var(--accent-scale);
+      background: rgba(52, 211, 153, 0.06);
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Section Card */
+    .section-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 9px;
+      padding: 0.95rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 50px 1fr;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .control-label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .num-input {
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: 6px;
+      width: 100%;
+    }
+
+    .num-input:focus {
+      outline: none;
+      border-color: var(--border-focus);
+    }
+
+    /* Action "Add" Button */
+    .btn-apply {
+      width: 100%;
+      margin-top: 0.65rem;
+      padding: 0.65rem 1rem;
+      border-radius: 7px;
+      border: none;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      transition: all 0.2s;
+    }
+
+    .btn-apply-trans {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      color: #031324;
+    }
+    .btn-apply-trans:hover {
+      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.4);
+    }
+
+    .btn-apply-rot {
+      background: linear-gradient(135deg, #d97706, #fbbf24);
+      color: #1a0f02;
+    }
+    .btn-apply-rot:hover {
+      box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+    }
+
+    .btn-apply-scale {
+      background: linear-gradient(135deg, #059669, #34d399);
+      color: #021a11;
+    }
+    .btn-apply-scale:hover {
+      box-shadow: 0 4px 15px rgba(52, 211, 153, 0.4);
+    }
+
+    /* Matrix Box & Vector Column Display */
+    .matrix-box {
+      background: #080c14;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.85rem;
+      margin-bottom: 1rem;
+      font-family: var(--font-mono);
+    }
+
+    .matrix-header {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-bottom: 0.45rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Math Multiplication Flow: Matrix × Current Vector = Resulting Vector */
+    .math-flow-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.45rem;
+      margin-bottom: 0.75rem;
+      padding: 0.25rem 0;
+    }
+
+    .matrix-block {
+      flex: 1.4;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .vector-block {
+      flex: 0.75;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .block-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+      text-align: center;
+      letter-spacing: 0.3px;
+      font-weight: 600;
+    }
+
+    .block-label.target {
+      color: #c084fc;
+    }
+
+    .math-operator {
+      font-size: 1.15rem;
+      color: var(--text-dim);
+      font-weight: bold;
+      padding: 0 0.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .vector-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 0.45rem 0.45rem;
+      border-radius: 6px;
+      border-left: 2.5px solid var(--accent-obj);
+      border-right: 2.5px solid var(--accent-obj);
+      text-align: center;
+      min-width: 56px;
+    }
+
+    .vector-col.target-vec {
+      border-left-color: #a855f7;
+      border-right-color: #a855f7;
+      background: rgba(88, 28, 135, 0.15);
+    }
+
+    .v-cell {
+      padding: 0.25rem 0.15rem;
+      background: rgba(15, 23, 42, 0.7);
+      border-radius: 4px;
+      font-weight: 700;
+      color: var(--accent-obj);
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .vector-col.target-vec .v-cell {
+      color: #c084fc;
+      background: rgba(88, 28, 135, 0.35);
+    }
+
+    .v-cell.dim {
+      color: var(--text-dim) !important;
+      font-weight: normal;
+      background: rgba(15, 23, 42, 0.4);
+    }
+
+    .calc-equations-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      margin-top: 0.65rem;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      line-height: 1.55;
+      color: var(--text-muted);
+    }
+
+    .matrix-display {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.25rem;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 0.45rem;
+      border-radius: 6px;
+      border-left: 3px solid var(--border-color);
+      border-right: 3px solid var(--border-color);
+      text-align: center;
+      font-size: 0.8rem;
+    }
+
+    .matrix-cell {
+      padding: 0.25rem 0.1rem;
+      color: #93c5fd;
+      border-radius: 4px;
+      background: rgba(15, 23, 42, 0.6);
+      white-space: nowrap;
+    }
+
+    .matrix-cell.math-func {
+      color: #fbbf24;
+      font-weight: 600;
+    }
+
+    /* Unity C# Info Card (No Physics) */
+    .unity-info-card {
+      background: #090d16;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .unity-info-header {
+      background: rgba(34, 211, 238, 0.08);
+      padding: 0.5rem 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .unity-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent-unity);
+    }
+
+    .code-snippet-box {
+      margin: 0.65rem 0.75rem;
+      background: #050811;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+    }
+
+    pre.code-block {
+      padding: 0.65rem 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      line-height: 1.45;
+      color: #e2e8f0;
+      overflow-x: auto;
+    }
+
+    /* Syntax Highlighting */
+    .kw { color: #f472b6; }
+    .tp { color: #38bdf8; }
+    .fn { color: #fbbf24; }
+    .num { color: #a78bfa; }
+    .cmt { color: #64748b; font-style: italic; }
+    .prop { color: #93c5fd; }
+
+    .point-dragging {
+      cursor: grabbing !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand">
+      <span class="brand-badge">2D MATH</span>
+      <h1>2D Origin-Based Transforms &amp; Matrix Engine</h1>
+    </div>
+    <div>
+      <button class="btn-icon" id="resetVectorBtn" title="Reset dot position to (2.0, 1.0)">Reset Position</button>
+    </div>
+  </header>
+
+  <!-- Main Grid Layout -->
+  <div class="app-container">
+
+    <!-- Column 1: Coordinate Canvas -->
+    <section class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 12h18M12 3v18"/>
+          </svg>
+          Cartesian Coordinate Grid
+        </div>
+        <button class="btn-icon" id="resetViewBtn" title="Center View &amp; Reset Zoom">Reset View</button>
+      </div>
+
+      <div class="canvas-wrapper">
+        <canvas id="viewport"></canvas>
+
+        <div style="position: absolute; bottom: 1rem; left: 1rem; background: rgba(17, 24, 39, 0.92); border: 1px solid var(--border-color); padding: 0.55rem 0.95rem; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem;">
+          <div><span style="color: var(--accent-obj);">Current Position:</span> (<span id="canvasPosX">2.00</span>, <span id="canvasPosY">1.00</span>)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Column 2: ONLY Current Position Banner + 3 Tabs (Translate, Rotate, Scale) -->
+    <section class="panel">
+
+      <!-- Persistent Status: SHOW ONLY CURRENT POSITION (x, y) -->
+      <div style="padding: 1rem 1rem 0 1rem;">
+        <div class="status-dashboard">
+          <div>
+            <div class="status-label">CURRENT POSITION (x, y)</div>
+            <div class="status-value" id="statPos">(2.00, 1.00)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Selector: ONLY Translate, Rotate, Scale -->
+      <div class="tabs-nav">
+        <button class="tab-btn tab-t active" data-tab="tab-trans">1. Translate</button>
+        <button class="tab-btn tab-r" data-tab="tab-rot">2. Rotate</button>
+        <button class="tab-btn tab-s" data-tab="tab-scale">3. Scale</button>
+      </div>
+
+      <div class="panel-body">
+
+        <!-- =================== TAB 1: TRANSLATE =================== -->
+        <div class="tab-pane active" id="tab-trans">
+          
+          <div class="section-card">
+            <div class="section-title" style="color: var(--accent-trans);">
+              Translation Offset T(dx, dy)
+            </div>
+            <div class="control-row">
+              <span class="control-label">dx:</span>
+              <input type="number" id="inputDx" class="num-input" step="0.5" value="1.0">
+            </div>
+            <div class="control-row">
+              <span class="control-label">dy:</span>
+              <input type="number" id="inputDy" class="num-input" step="0.5" value="1.0">
+            </div>
+            <button class="btn-apply btn-apply-trans" id="btnAddTrans">
+              + Add Translation to Position
+            </button>
+          </div>
+
+          <!-- Matrix Calculation: Matrix · Current Vector = Resulting Vector -->
+          <div class="matrix-box">
+            <div class="matrix-header">
+              <span style="color: var(--accent-trans); font-weight: 700;">Matrix Calculation: P' = T · P</span>
+            </div>
+
+            <!-- Flow: Transform Matrix × Current Vector = Resulting Vector -->
+            <div class="math-flow-container">
+              <!-- 1. Transform Matrix T -->
+              <div class="matrix-block">
+                <div class="block-label">TRANSLATE MATRIX T</div>
+                <div class="matrix-display" style="border-left-color: var(--accent-trans); border-right-color: var(--accent-trans);">
+                  <div class="matrix-cell">1</div>
+                  <div class="matrix-cell">0</div>
+                  <div class="matrix-cell" style="color: var(--accent-trans); font-weight: bold;" id="symDx">1.00</div>
+
+                  <div class="matrix-cell">0</div>
+                  <div class="matrix-cell">1</div>
+                  <div class="matrix-cell" style="color: var(--accent-trans); font-weight: bold;" id="symDy">1.00</div>
+
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">1</div>
+                </div>
+              </div>
+
+              <!-- Multiply Symbol -->
+              <div class="math-operator">×</div>
+
+              <!-- 2. Current Position Vector (Vertical) -->
+              <div class="vector-block">
+                <div class="block-label">CURRENT P</div>
+                <div class="vector-col">
+                  <div class="v-cell" id="transVecCurX">2.00</div>
+                  <div class="v-cell" id="transVecCurY">1.00</div>
+                  <div class="v-cell dim">1</div>
+                </div>
+              </div>
+
+              <!-- Equals Symbol -->
+              <div class="math-operator">=</div>
+
+              <!-- 3. Resulting Position Vector (Vertical) -->
+              <div class="vector-block">
+                <div class="block-label target">RESULT P'</div>
+                <div class="vector-col target-vec">
+                  <div class="v-cell" id="transVecTargetX">3.00</div>
+                  <div class="v-cell" id="transVecTargetY">2.00</div>
+                  <div class="v-cell dim">1</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Matrix Calculation Equations -->
+            <div class="calc-equations-box">
+              <div style="font-weight: 700; color: #e2e8f0; margin-bottom: 0.35rem;">Equations:</div>
+              <div>x_target = 1·x + 0·y + dx = (<span id="eqTransX">2.00</span>) + (<span id="eqTransDx">1.00</span>) = <strong style="color: #c084fc;" id="eqResTransX">3.00</strong></div>
+              <div>y_target = 0·x + 1·y + dy = (<span id="eqTransY">1.00</span>) + (<span id="eqTransDy">1.00</span>) = <strong style="color: #c084fc;" id="eqResTransY">2.00</strong></div>
+            </div>
+          </div>
+
+          <!-- Unity Translation Codes (Absolute, Relative & Built-in) -->
+          <div class="unity-info-card">
+            <div class="unity-info-header">
+              <span class="unity-title">Unity C# Translation</span>
+              <button class="copy-btn" onclick="copySnippet(this)">Copy</button>
+            </div>
+            <div class="code-snippet-box">
+              <pre class="code-block"><span class="cmt">// 1. Absolute Change (Direct Position Assignment)</span>
+<span class="prop">transform</span>.<span class="prop">position</span> = <span class="kw">new</span> <span class="tp">Vector3</span>(targetX, targetY, <span class="num">0f</span>);
+<span class="prop">transform</span>.<span class="prop">localPosition</span> = <span class="kw">new</span> <span class="tp">Vector3</span>(targetX, targetY, <span class="num">0f</span>);
+
+<span class="cmt">// 2. Relative Change (Adding Offset Vector)</span>
+<span class="prop">transform</span>.<span class="prop">position</span> += <span class="kw">new</span> <span class="tp">Vector3</span>(dx, dy, <span class="num">0f</span>);
+
+<span class="cmt">// 3. Built-in Function: transform.Translate</span>
+<span class="prop">transform</span>.<span class="fn">Translate</span>(dx, dy, <span class="num">0f</span>);</pre>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- =================== TAB 2: ROTATE =================== -->
+        <div class="tab-pane" id="tab-rot">
+          
+          <div class="section-card">
+            <div class="section-title" style="color: var(--accent-rot);">
+              Rotation Angle R(θ) around Origin (0,0)
+            </div>
+            <div class="control-row">
+              <span class="control-label">Angle:</span>
+              <input type="number" id="inputAngle" class="num-input" step="15" value="45">
+            </div>
+            <button class="btn-apply btn-apply-rot" id="btnAddRot">
+              ↻ Rotate Position around Origin
+            </button>
+          </div>
+
+          <!-- Matrix Calculation: Matrix · Current Vector = Resulting Vector -->
+          <div class="matrix-box">
+            <div class="matrix-header">
+              <span style="color: var(--accent-rot); font-weight: 700;">Matrix Calculation: P' = R · P</span>
+              <span id="rotAngleDisplay" style="color: #fbbf24; font-weight: 600;">θ = 45°</span>
+            </div>
+
+            <!-- Flow: Rotation Matrix × Current Vector = Resulting Vector -->
+            <div class="math-flow-container">
+              <!-- 1. Rotation Matrix R(θ) with cos/sin -->
+              <div class="matrix-block">
+                <div class="block-label">ROTATION MATRIX R(θ)</div>
+                <div class="matrix-display" style="border-left-color: var(--accent-rot); border-right-color: var(--accent-rot);">
+                  <div class="matrix-cell math-func" id="symCos1">cos(45°)</div>
+                  <div class="matrix-cell math-func" id="symSinNeg">-sin(45°)</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+
+                  <div class="matrix-cell math-func" id="symSinPos">sin(45°)</div>
+                  <div class="matrix-cell math-func" id="symCos2">cos(45°)</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">1</div>
+                </div>
+              </div>
+
+              <!-- Multiply Symbol -->
+              <div class="math-operator">×</div>
+
+              <!-- 2. Current Position Vector (Vertical) -->
+              <div class="vector-block">
+                <div class="block-label">CURRENT P</div>
+                <div class="vector-col">
+                  <div class="v-cell" id="rotVecCurX">2.00</div>
+                  <div class="v-cell" id="rotVecCurY">1.00</div>
+                  <div class="v-cell dim">1</div>
+                </div>
+              </div>
+
+              <!-- Equals Symbol -->
+              <div class="math-operator">=</div>
+
+              <!-- 3. Resulting Position Vector (Vertical) -->
+              <div class="vector-block">
+                <div class="block-label target">RESULT P'</div>
+                <div class="vector-col target-vec">
+                  <div class="v-cell" id="rotVecTargetX">0.71</div>
+                  <div class="v-cell" id="rotVecTargetY">2.12</div>
+                  <div class="v-cell dim">1</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Evaluated Rotation Matrix (ONLY Rotate needs evaluated matrix) -->
+            <div class="matrix-header" style="margin-top: 0.75rem;">
+              <span style="color: #93c5fd; font-weight: 600;">Evaluated Rotation Matrix R</span>
+              <span style="color: var(--text-dim);">Numeric Values</span>
+            </div>
+            <div class="matrix-display" style="border-left-color: var(--accent-rot); border-right-color: var(--accent-rot);">
+              <div class="matrix-cell" id="evalCos1">0.71</div>
+              <div class="matrix-cell" id="evalSinNeg">-0.71</div>
+              <div class="matrix-cell" style="color: var(--text-dim);">0.00</div>
+
+              <div class="matrix-cell" id="evalSinPos">0.71</div>
+              <div class="matrix-cell" id="evalCos2">0.71</div>
+              <div class="matrix-cell" style="color: var(--text-dim);">0.00</div>
+
+              <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+              <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+              <div class="matrix-cell" style="color: var(--text-dim);">1</div>
+            </div>
+
+            <!-- Matrix Calculation Equations -->
+            <div class="calc-equations-box">
+              <div style="font-weight: 700; color: #e2e8f0; margin-bottom: 0.35rem;">Equations:</div>
+              <div>x_target = cos(θ)·x - sin(θ)·y = (<span id="eqRotCos">0.71</span>)·(<span id="eqRotX">2.00</span>) - (<span id="eqRotSin">0.71</span>)·(<span id="eqRotY">1.00</span>) = <span id="eqRotStepX">1.41 - 0.71</span> = <strong style="color: #c084fc;" id="eqResRotX">0.71</strong></div>
+              <div>y_target = sin(θ)·x + cos(θ)·y = (<span id="eqRotSin2">0.71</span>)·(<span id="eqRotX2">2.00</span>) + (<span id="eqRotCos2">0.71</span>)·(<span id="eqRotY2">1.00</span>) = <span id="eqRotStepY">1.41 + 0.71</span> = <strong style="color: #c084fc;" id="eqResRotY">2.12</strong></div>
+            </div>
+          </div>
+
+          <!-- Unity Rotation Codes (Euler, Quaternion, Absolute, Relative & Built-in) -->
+          <div class="unity-info-card">
+            <div class="unity-info-header">
+              <span class="unity-title">Unity C# Rotation</span>
+              <button class="copy-btn" onclick="copySnippet(this)">Copy</button>
+            </div>
+            <div class="code-snippet-box">
+              <pre class="code-block"><span class="cmt">// === 1. ABSOLUTE ROTATION ===</span>
+<span class="cmt">// (a) Using Euler Angles (degrees: 0° - 360°)</span>
+<span class="prop">transform</span>.<span class="prop">eulerAngles</span> = <span class="kw">new</span> <span class="tp">Vector3</span>(<span class="num">0f</span>, <span class="num">0f</span>, targetAngle);
+<span class="prop">transform</span>.<span class="prop">localEulerAngles</span> = <span class="kw">new</span> <span class="tp">Vector3</span>(<span class="num">0f</span>, <span class="num">0f</span>, targetAngle);
+
+<span class="cmt">// (b) Using Quaternion</span>
+<span class="prop">transform</span>.<span class="prop">rotation</span> = <span class="tp">Quaternion</span>.<span class="fn">Euler</span>(<span class="num">0f</span>, <span class="num">0f</span>, targetAngle);
+
+<span class="cmt">// === 2. RELATIVE ROTATION ===</span>
+<span class="cmt">// (a) Using Euler Angles addition</span>
+<span class="prop">transform</span>.<span class="prop">eulerAngles</span> += <span class="kw">new</span> <span class="tp">Vector3</span>(<span class="num">0f</span>, <span class="num">0f</span>, deltaAngle);
+
+<span class="cmt">// (b) Using Quaternion multiplication (Preferred in Unity)</span>
+<span class="prop">transform</span>.<span class="prop">rotation</span> = <span class="tp">Quaternion</span>.<span class="fn">Euler</span>(<span class="num">0f</span>, <span class="num">0f</span>, deltaAngle) * <span class="prop">transform</span>.<span class="prop">rotation</span>;
+
+<span class="cmt">// === 3. BUILT-IN FUNCTIONS ===</span>
+<span class="cmt">// Rotate around Origin (0,0) or pivot point (Our Math Model)</span>
+<span class="prop">transform</span>.<span class="fn">RotateAround</span>(<span class="tp">Vector3</span>.<span class="prop">zero</span>, <span class="tp">Vector3</span>.<span class="prop">forward</span>, deltaAngle);
+
+<span class="cmt">// Self rotation: transform.Rotate</span>
+<span class="prop">transform</span>.<span class="fn">Rotate</span>(<span class="num">0f</span>, <span class="num">0f</span>, deltaAngle);</pre>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- =================== TAB 3: SCALE =================== -->
+        <div class="tab-pane" id="tab-scale">
+          
+          <div class="section-card">
+            <div class="section-title" style="color: var(--accent-scale);">
+              Scale Multiplier S(sx, sy) from Origin (0,0)
+            </div>
+            <div class="control-row">
+              <span class="control-label">sx:</span>
+              <input type="number" id="inputSx" class="num-input" step="0.25" value="1.5">
+            </div>
+            <div class="control-row">
+              <span class="control-label">sy:</span>
+              <input type="number" id="inputSy" class="num-input" step="0.25" value="1.5">
+            </div>
+            <button class="btn-apply btn-apply-scale" id="btnAddScale">
+              ⤢ Scale Position from Origin
+            </button>
+          </div>
+
+          <!-- Matrix Calculation: Matrix · Current Vector = Resulting Vector -->
+          <div class="matrix-box">
+            <div class="matrix-header">
+              <span style="color: var(--accent-scale); font-weight: 700;">Matrix Calculation: P' = S · P</span>
+            </div>
+
+            <!-- Flow: Scale Matrix × Current Vector = Resulting Vector -->
+            <div class="math-flow-container">
+              <!-- 1. Scale Matrix S -->
+              <div class="matrix-block">
+                <div class="block-label">SCALE MATRIX S</div>
+                <div class="matrix-display" style="border-left-color: var(--accent-scale); border-right-color: var(--accent-scale);">
+                  <div class="matrix-cell" style="color: var(--accent-scale); font-weight: bold;" id="symSx">1.50</div>
+                  <div class="matrix-cell">0</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+
+                  <div class="matrix-cell">0</div>
+                  <div class="matrix-cell" style="color: var(--accent-scale); font-weight: bold;" id="symSy">1.50</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">0</div>
+                  <div class="matrix-cell" style="color: var(--text-dim);">1</div>
+                </div>
+              </div>
+
+              <!-- Multiply Symbol -->
+              <div class="math-operator">×</div>
+
+              <!-- 2. Current Position Vector (Vertical) -->
+              <div class="vector-block">
+                <div class="block-label">CURRENT P</div>
+                <div class="vector-col">
+                  <div class="v-cell" id="scaleVecCurX">2.00</div>
+                  <div class="v-cell" id="scaleVecCurY">1.00</div>
+                  <div class="v-cell dim">1</div>
+                </div>
+              </div>
+
+              <!-- Equals Symbol -->
+              <div class="math-operator">=</div>
+
+              <!-- 3. Resulting Position Vector (Vertical) -->
+              <div class="vector-block">
+                <div class="block-label target">RESULT P'</div>
+                <div class="vector-col target-vec">
+                  <div class="v-cell" id="scaleVecTargetX">3.00</div>
+                  <div class="v-cell" id="scaleVecTargetY">1.50</div>
+                  <div class="v-cell dim">1</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Matrix Calculation Equations -->
+            <div class="calc-equations-box">
+              <div style="font-weight: 700; color: #e2e8f0; margin-bottom: 0.35rem;">Equations:</div>
+              <div>x_target = sx·x = (<span id="eqScaleSx">1.50</span>)·(<span id="eqScaleX">2.00</span>) = <strong style="color: #c084fc;" id="eqResScaleX">3.00</strong></div>
+              <div>y_target = sy·y = (<span id="eqScaleSy">1.50</span>)·(<span id="eqScaleY">1.00</span>) = <strong style="color: #c084fc;" id="eqResScaleY">1.50</strong></div>
+            </div>
+          </div>
+
+          <!-- Unity Scale Codes (Absolute, Relative & Built-in) -->
+          <div class="unity-info-card">
+            <div class="unity-info-header">
+              <span class="unity-title">Unity C# Scale</span>
+              <button class="copy-btn" onclick="copySnippet(this)">Copy</button>
+            </div>
+            <div class="code-snippet-box">
+              <pre class="code-block"><span class="cmt">// 1. Absolute Change (Direct Scale Assignment)</span>
+<span class="prop">transform</span>.<span class="prop">localScale</span> = <span class="kw">new</span> <span class="tp">Vector3</span>(targetSx, targetSy, <span class="num">1f</span>);
+
+<span class="cmt">// 2. Relative Change (Component-wise Scaling)</span>
+<span class="prop">transform</span>.<span class="prop">localScale</span> = <span class="kw">new</span> <span class="tp">Vector3</span>(
+    <span class="prop">transform</span>.<span class="prop">localScale</span>.<span class="prop">x</span> * sx,
+    <span class="prop">transform</span>.<span class="prop">localScale</span>.<span class="prop">y</span> * sy,
+    <span class="prop">transform</span>.<span class="prop">localScale</span>.<span class="prop">z</span>
+);
+
+<span class="cmt">// Scaling Position relative to Origin (0,0) (Our Math Model)</span>
+<span class="prop">transform</span>.<span class="prop">position</span> = <span class="kw">new</span> <span class="tp">Vector3</span>(
+    <span class="prop">transform</span>.<span class="prop">position</span>.<span class="prop">x</span> * sx,
+    <span class="prop">transform</span>.<span class="prop">position</span>.<span class="prop">y</span> * sy,
+    <span class="prop">transform</span>.<span class="prop">position</span>.<span class="prop">z</span>
+);
+
+<span class="cmt">// 3. Built-in Function: Vector3.Scale</span>
+<span class="prop">transform</span>.<span class="prop">localScale</span> = <span class="tp">Vector3</span>.<span class="fn">Scale</span>(<span class="prop">transform</span>.<span class="prop">localScale</span>, <span class="kw">new</span> <span class="tp">Vector3</span>(sx, sy, <span class="num">1f</span>));</pre>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // --- Point State: ONLY Position (x, y) ---
+    const state = {
+      x: 2.0,
+      y: 1.0,
+      // Camera
+      pixelsPerUnit: 40,
+      panX: 0,
+      panY: 0,
+      isDragging: false,
+      isPanning: false,
+      lastMouseX: 0,
+      lastMouseY: 0
+    };
+
+    // DOM Elements
+    const canvas = document.getElementById('viewport');
+    const ctx = canvas.getContext('2d');
+
+    // Status Display (Position ONLY)
+    const statPos = document.getElementById('statPos');
+
+    // Canvas readouts
+    const canvasPosX = document.getElementById('canvasPosX');
+    const canvasPosY = document.getElementById('canvasPosY');
+
+    // Tab 1: Translation Inputs & Matrix Elements
+    const inputDx = document.getElementById('inputDx');
+    const inputDy = document.getElementById('inputDy');
+    const btnAddTrans = document.getElementById('btnAddTrans');
+
+    // Tab 2: Rotation Inputs & Matrix Elements
+    const inputAngle = document.getElementById('inputAngle');
+    const btnAddRot = document.getElementById('btnAddRot');
+
+    // Tab 3: Scale Inputs & Matrix Elements
+    const inputSx = document.getElementById('inputSx');
+    const inputSy = document.getElementById('inputSy');
+    const btnAddScale = document.getElementById('btnAddScale');
+
+    const resetVectorBtn = document.getElementById('resetVectorBtn');
+    const resetViewBtn = document.getElementById('resetViewBtn');
+
+    // --- Action Button: Add Translation (Relative Update to Position) ---
+    btnAddTrans.addEventListener('click', () => {
+      const dx = parseFloat(inputDx.value) || 0;
+      const dy = parseFloat(inputDy.value) || 0;
+
+      state.x = Math.round((state.x + dx) * 100) / 100;
+      state.y = Math.round((state.y + dy) * 100) / 100;
+
+      draw();
+    });
+
+    // --- Action Button: Add Rotation (Relative Rotation of Position around Origin) ---
+    btnAddRot.addEventListener('click', () => {
+      const angleDeg = parseFloat(inputAngle.value) || 0;
+      const rad = (angleDeg * Math.PI) / 180.0;
+      const c = Math.cos(rad);
+      const s = Math.sin(rad);
+
+      const newX = state.x * c - state.y * s;
+      const newY = state.x * s + state.y * c;
+
+      state.x = Math.round(newX * 100) / 100;
+      state.y = Math.round(newY * 100) / 100;
+
+      draw();
+    });
+
+    // --- Action Button: Apply Scale (Relative Scale of Position from Origin) ---
+    btnAddScale.addEventListener('click', () => {
+      const sx = parseFloat(inputSx.value) || 1;
+      const sy = parseFloat(inputSy.value) || 1;
+
+      state.x = Math.round(state.x * sx * 100) / 100;
+      state.y = Math.round(state.y * sy * 100) / 100;
+
+      draw();
+    });
+
+    // Reset Position
+    resetVectorBtn.addEventListener('click', () => {
+      state.x = 2.0;
+      state.y = 1.0;
+      draw();
+    });
+
+    resetViewBtn.addEventListener('click', () => {
+      state.panX = 0;
+      state.panY = 0;
+      state.pixelsPerUnit = 40;
+      draw();
+    });
+
+    // Number format helper (avoids -0.00)
+    const fmt = (n) => (Math.abs(n) < 0.0001 ? 0 : n).toFixed(2);
+
+    // Safe DOM text setter
+    function setText(id, text) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    }
+
+    // --- Dynamic Matrix & Vector Equation Updates ---
+    function updateMatrixPreviews() {
+      // 1. Translation Calculation & Vectors
+      const dx = parseFloat(inputDx.value) || 0;
+      const dy = parseFloat(inputDy.value) || 0;
+      const targetTransX = state.x + dx;
+      const targetTransY = state.y + dy;
+
+      setText('symDx', fmt(dx));
+      setText('symDy', fmt(dy));
+      setText('transVecCurX', fmt(state.x));
+      setText('transVecCurY', fmt(state.y));
+      setText('transVecTargetX', fmt(targetTransX));
+      setText('transVecTargetY', fmt(targetTransY));
+      setText('eqTransX', fmt(state.x));
+      setText('eqTransDx', fmt(dx));
+      setText('eqResTransX', fmt(targetTransX));
+      setText('eqTransY', fmt(state.y));
+      setText('eqTransDy', fmt(dy));
+      setText('eqResTransY', fmt(targetTransY));
+
+      // 2. Rotation Calculation & Vectors (Trig function + Evaluated Matrix)
+      const angle = parseFloat(inputAngle.value) || 0;
+      const rad = (angle * Math.PI) / 180.0;
+      const c = Math.cos(rad);
+      const s = Math.sin(rad);
+
+      const targetRotX = state.x * c - state.y * s;
+      const targetRotY = state.x * s + state.y * c;
+      const term1X = c * state.x;
+      const term2X = s * state.y;
+      const term1Y = s * state.x;
+      const term2Y = c * state.y;
+
+      setText('rotAngleDisplay', `θ = ${angle}°`);
+      setText('symCos1', `cos(${angle}°)`);
+      setText('symSinNeg', `-sin(${angle}°)`);
+      setText('symSinPos', `sin(${angle}°)`);
+      setText('symCos2', `cos(${angle}°)`);
+      setText('evalCos1', fmt(c));
+      setText('evalSinNeg', fmt(-s));
+      setText('evalSinPos', fmt(s));
+      setText('evalCos2', fmt(c));
+      setText('rotVecCurX', fmt(state.x));
+      setText('rotVecCurY', fmt(state.y));
+      setText('rotVecTargetX', fmt(targetRotX));
+      setText('rotVecTargetY', fmt(targetRotY));
+      setText('eqRotCos', fmt(c));
+      setText('eqRotX', fmt(state.x));
+      setText('eqRotSin', fmt(s));
+      setText('eqRotY', fmt(state.y));
+      setText('eqRotStepX', `${fmt(term1X)} - (${fmt(term2X)})`);
+      setText('eqResRotX', fmt(targetRotX));
+      setText('eqRotSin2', fmt(s));
+      setText('eqRotX2', fmt(state.x));
+      setText('eqRotCos2', fmt(c));
+      setText('eqRotY2', fmt(state.y));
+      setText('eqRotStepY', `${fmt(term1Y)} + (${fmt(term2Y)})`);
+      setText('eqResRotY', fmt(targetRotY));
+
+      // 3. Scale Calculation & Vectors
+      const sx = parseFloat(inputSx.value) || 1;
+      const sy = parseFloat(inputSy.value) || 1;
+      const targetScaleX = state.x * sx;
+      const targetScaleY = state.y * sy;
+
+      setText('symSx', fmt(sx));
+      setText('symSy', fmt(sy));
+      setText('scaleVecCurX', fmt(state.x));
+      setText('scaleVecCurY', fmt(state.y));
+      setText('scaleVecTargetX', fmt(targetScaleX));
+      setText('scaleVecTargetY', fmt(targetScaleY));
+      setText('eqScaleSx', fmt(sx));
+      setText('eqScaleX', fmt(state.x));
+      setText('eqResScaleX', fmt(targetScaleX));
+      setText('eqScaleSy', fmt(sy));
+      setText('eqScaleY', fmt(state.y));
+      setText('eqResScaleY', fmt(targetScaleY));
+    }
+
+    // Attach to input, change, and keyup for immediate live calculation updates
+    ['input', 'change', 'keyup'].forEach(evt => {
+      inputDx.addEventListener(evt, updateMatrixPreviews);
+      inputDy.addEventListener(evt, updateMatrixPreviews);
+      inputAngle.addEventListener(evt, updateMatrixPreviews);
+      inputSx.addEventListener(evt, updateMatrixPreviews);
+      inputSy.addEventListener(evt, updateMatrixPreviews);
+    });
+
+    // --- Screen <-> World Mapping ---
+    function worldToScreen(wx, wy) {
+      const cx = canvas.width / 2 + state.panX;
+      const cy = canvas.height / 2 + state.panY;
+      const sx = cx + wx * state.pixelsPerUnit;
+      const sy = cy - wy * state.pixelsPerUnit;
+      return { x: sx, y: sy };
+    }
+
+    function screenToWorld(sx, sy) {
+      const cx = canvas.width / 2 + state.panX;
+      const cy = canvas.height / 2 + state.panY;
+      const wx = (sx - cx) / state.pixelsPerUnit;
+      const wy = (cy - sy) / state.pixelsPerUnit;
+      return { x: wx, y: wy };
+    }
+
+    function resizeCanvas() {
+      if (!canvas.parentElement) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    // ResizeObserver ensures canvas buffer matches DOM element dimensions immediately
+    if (window.ResizeObserver && canvas.parentElement) {
+      const ro = new ResizeObserver(() => {
+        resizeCanvas();
+      });
+      ro.observe(canvas.parentElement);
+    }
+
+    // --- Draw Loop ---
+    function draw() {
+      const dpr = window.devicePixelRatio || 1;
+      const w = canvas.width / dpr;
+      const h = canvas.height / dpr;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Grid
+      drawGrid(w, h);
+
+      // 2. Axes through origin (0,0)
+      drawAxes(w, h);
+
+      // 3. Origin-based Vector from (0,0) to current (state.x, state.y)
+      drawOriginVector();
+
+      // 4. Single Dot Object
+      drawSingleDotObject();
+
+      // 5. Update Persistent Position Readout & Matrix Previews
+      updatePositionReadout();
+      updateMatrixPreviews();
+    }
+
+    function drawGrid(w, h) {
+      const ppu = state.pixelsPerUnit;
+      const cx = w / 2 + state.panX;
+      const cy = h / 2 + state.panY;
+
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.font = '10px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillStyle = 'rgba(156, 163, 175, 0.4)';
+
+      const startX = Math.floor(-cx / ppu);
+      const endX = Math.ceil((w - cx) / ppu);
+      for (let i = startX; i <= endX; i++) {
+        if (i === 0) continue;
+        const x = cx + i * ppu;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+
+        if (i % 2 === 0 || ppu >= 45) {
+          ctx.fillText(i, x - 4, cy + 14);
+        }
+      }
+
+      const startY = Math.floor(-(h - cy) / ppu);
+      const endY = Math.ceil(cy / ppu);
+      for (let i = startY; i <= endY; i++) {
+        if (i === 0) continue;
+        const y = cy - i * ppu;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+
+        if (i % 2 === 0 || ppu >= 45) {
+          ctx.fillText(i, cx + 6, y + 3);
+        }
+      }
+    }
+
+    function drawAxes(w, h) {
+      const cx = w / 2 + state.panX;
+      const cy = h / 2 + state.panY;
+
+      // X Axis (Red)
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(0, cy);
+      ctx.lineTo(w, cy);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.moveTo(w - 10, cy - 5);
+      ctx.lineTo(w, cy);
+      ctx.lineTo(w - 10, cy + 5);
+      ctx.fill();
+
+      ctx.font = 'bold 12px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillText('+X', w - 24, cy - 8);
+
+      // Y Axis (Green)
+      ctx.strokeStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.moveTo(cx, h);
+      ctx.lineTo(cx, 0);
+      ctx.stroke();
+
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, 10);
+      ctx.lineTo(cx, 0);
+      ctx.lineTo(cx + 5, 10);
+      ctx.fill();
+
+      ctx.fillText('+Y', cx + 8, 18);
+
+      // Origin (0,0)
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillStyle = '#9ca3af';
+      ctx.fillText('O (0,0)', cx - 38, cy + 16);
+    }
+
+    function drawOriginVector() {
+      const origin = worldToScreen(0, 0);
+      const scrObj = worldToScreen(state.x, state.y);
+
+      ctx.save();
+
+      // Vector line from Origin (0,0) to dot
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(scrObj.x, scrObj.y);
+      ctx.stroke();
+
+      // Rotation Arc at Origin (0,0)
+      const objAngle = Math.atan2(state.y, state.x);
+      const dist = Math.hypot(state.x, state.y);
+      const arcRadius = Math.min(dist * state.pixelsPerUnit * 0.45, 50);
+
+      if (dist > 0.3 && arcRadius > 12) {
+        ctx.setLineDash([]);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(origin.x, origin.y, arcRadius, 0, -objAngle, objAngle > 0);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function drawSingleDotObject() {
+      const p = worldToScreen(state.x, state.y);
+
+      ctx.save();
+      // Outer glow
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 11, 0, Math.PI * 2);
+      ctx.fillStyle = '#38bdf8';
+      ctx.globalAlpha = 0.28;
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+
+      // Solid dot
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#082f49';
+      ctx.stroke();
+
+      // Label
+      ctx.font = 'bold 12px ' + getComputedStyle(document.body).fontFamily;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 4;
+      ctx.fillText(`(${state.x.toFixed(2)}, ${state.y.toFixed(2)})`, p.x + 12, p.y - 10);
+      ctx.restore();
+    }
+
+    // --- Update Position Readout ONLY ---
+    function updatePositionReadout() {
+      statPos.textContent = `(${state.x.toFixed(2)}, ${state.y.toFixed(2)})`;
+      canvasPosX.textContent = state.x.toFixed(2);
+      canvasPosY.textContent = state.y.toFixed(2);
+    }
+
+    // --- Interactive Mouse Dragging ---
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const scrObj = worldToScreen(state.x, state.y);
+      const distToObj = Math.hypot(mouseX - scrObj.x, mouseY - scrObj.y);
+
+      if (distToObj <= 24) {
+        state.isDragging = true;
+        canvas.classList.add('point-dragging');
+      } else {
+        state.isPanning = true;
+        state.lastMouseX = mouseX;
+        state.lastMouseY = mouseY;
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      if (state.isDragging) {
+        const targetWorld = screenToWorld(mouseX, mouseY);
+        state.x = Math.round(targetWorld.x * 10) / 10;
+        state.y = Math.round(targetWorld.y * 10) / 10;
+        draw();
+      } else if (state.isPanning) {
+        const dx = mouseX - state.lastMouseX;
+        const dy = mouseY - state.lastMouseY;
+        state.panX += dx;
+        state.panY += dy;
+        state.lastMouseX = mouseX;
+        state.lastMouseY = mouseY;
+        draw();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      state.isDragging = false;
+      state.isPanning = false;
+      canvas.classList.remove('point-dragging');
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      state.pixelsPerUnit = Math.max(16, Math.min(100, state.pixelsPerUnit * zoomFactor));
+      draw();
+    }, { passive: false });
+
+    // --- Tabs Switching (ONLY Translate, Rotate, Scale) ---
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabButtons.forEach(b => b.classList.remove('active'));
+        tabPanes.forEach(p => p.classList.remove('active'));
+
+        btn.classList.add('active');
+        const target = document.getElementById(btn.dataset.tab);
+        if (target) target.classList.add('active');
+
+        // Immediately sync canvas dimensions & redraw
+        requestAnimationFrame(resizeCanvas);
+      });
+    });
+
+    // Copy Snippet Helper
+    window.copySnippet = function(button) {
+      const codeBlock = button.closest('.unity-info-card').querySelector('pre.code-block');
+      const text = codeBlock.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        button.style.background = '#22c55e';
+        button.style.color = '#fff';
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.style.background = '';
+          button.style.color = '';
+        }, 1500);
+      });
+    };
+
+    // Initial setup
+    resizeCanvas();
+    updateMatrixPreviews();
+  </script>
+</body>
+</html>
